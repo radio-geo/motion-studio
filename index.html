@@ -54,19 +54,31 @@
           <button data-fps="25" class="active">25 fps</button>
           <button data-fps="50">50 fps</button>
         </div>
+        <!-- Duration control (#6) -->
+        <div class="seg" id="dur-seg" title="Clip duration">
+          <button data-dur="5">5s</button>
+          <button data-dur="7" class="active">7s</button>
+          <button data-dur="10">10s</button>
+          <button data-dur="15">15s</button>
+        </div>
         <div class="transport">
           <button id="play-btn" class="btn small">Play</button>
           <button id="restart-btn" class="btn ghost small">Restart</button>
+          <!-- Loop toggle (#8) -->
+          <button id="loop-btn" class="btn ghost small" title="Loop on">↩ Loop</button>
         </div>
+        <!-- Keyboard hint -->
+        <span class="kbd-hint">Space · R · ←→</span>
       </div>
 
       <div class="stage-frame" id="stage-frame">
         <canvas id="stage-canvas" width="1920" height="1080"></canvas>
-        <!-- selection overlay lives in editor, not on canvas -->
       </div>
 
+      <!-- Scrubber with time display (#5) -->
       <div class="scrubber">
         <input id="scrub" type="range" min="0" max="1000" value="0" />
+        <span id="time-display" class="time-display">0.0 / 7.0</span>
       </div>
     </section>
 

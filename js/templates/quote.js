@@ -1,14 +1,8 @@
-/* quote.js — TEMPLATE 1 (Quote), the first real animated preview.
+/* quote.js — TEMPLATE 1 (Quote)
  *
- * Designed card driven entirely by the active BrandKit. One drawFrame(ctx, t)
- * is the single source of truth, so preview == export.
- *
- * Motion model:
- *   - Quote TEXT lives inside the camera (it gets the push-in + pan + underline).
- *   - Speaker photo + name/title live in SCREEN space with their own subtle
- *     entrance. They do NOT follow the text zoom. Photo enters earliest.
- *   - Text-in style is selectable (fade / type / wipe / cascade).
- *   - Optional text backing (shadow or dark panel) for busy backgrounds.
+ * Improvements in this revision:
+ *   #3  drag-drop on background upload
+ *   #10 lower-third rendering (uses BrandKit.lowerThird settings)
  */
 window.QuoteTemplate = (function () {
   const T = window.Timeline;
@@ -21,11 +15,11 @@ window.QuoteTemplate = (function () {
       quote: "We are building a tool that helps journalists create high-quality motion graphics in the browser.",
       name: "George Meladze",
       title: "Editor, Droeba",
-      photo: null,                              // HTMLImageElement
-      photoAdjust: { scale: 1, ox: 0, oy: 0 },  // reposition face inside circle
+      photo: null,
+      photoAdjust: { scale: 1, ox: 0, oy: 0 },
       bg: { type: "preset", preset: 0, image: null },
-      textReveal: "fade",                       // fade | type | wipe | cascade
-      textBacking: "none",                      // none | shadow | panel
+      textReveal: "fade",
+      textBacking: "none",
     },
     tt: null,
     _layout: null,
@@ -33,7 +27,7 @@ window.QuoteTemplate = (function () {
   };
 
   QT.tt = window.TextTargeting.create(QT.state.quote);
-  QT.tt.sel = { start: 9, end: 11 }; // "high-quality motion graphics"
+  QT.tt.sel = { start: 9, end: 11 };
 
   QT.BG_PRESETS = ["Gradient", "Vignette", "Diagonal", "Spotlight", "Grid"];
   QT.BG_LIBRARY = [
@@ -55,7 +49,7 @@ window.QuoteTemplate = (function () {
         <button class="ai-btn" id="q-ai">✨ help with text</button>
       </div>
       <div class="field">
-        <label>Target a phrase (click the first word, then the last)</label>
+        <label>Target a phrase (click first word, then last)</label>
         <div class="word-pick" id="q-words"></div>
         <div class="hint">The targeted phrase gets the zoom + underline. <a id="q-clear" style="color:var(--accent);cursor:pointer">clear</a></div>
       </div>
@@ -69,7 +63,7 @@ window.QuoteTemplate = (function () {
       </div>
       <div class="field">
         <label>Speaker photo</label>
-        <div class="logo-drop" id="q-photo-drop">Click to upload speaker photo</div>
+        <div class="logo-drop" id="q-photo-drop">Click or drop a speaker photo</div>
         <input type="file" id="q-photo" accept="image/*" hidden />
         <div class="adjust" id="q-photo-adj">
           <label>Zoom <input type="range" id="pa-scale" min="100" max="280" value="100"></label>
@@ -90,7 +84,7 @@ window.QuoteTemplate = (function () {
         <div class="bg-grid" id="q-bg"></div>
         <label style="margin-top:12px">Background — library</label>
         <div class="bg-lib" id="q-bg-lib"></div>
-        <div class="logo-drop" id="q-bg-drop" style="margin-top:8px">Upload background image</div>
+        <div class="logo-drop" id="q-bg-drop" style="margin-top:8px">Click or drop a background image</div>
         <input type="file" id="q-bg-file" accept="image/*" hidden />
         <button class="ai-btn" id="q-bg-ai">✨ generate more background options</button>
       </div>
@@ -114,20 +108,21 @@ window.QuoteTemplate = (function () {
     $("#q-reveal").addEventListener("change", e => { QT.state.textReveal = e.target.value; onChange && onChange(); });
     $("#q-backing").addEventListener("change", e => { QT.state.textBacking = e.target.value; onChange && onChange(); });
 
-    $("#q-photo-drop").addEventListener("click", () => $("#q-photo").click());
+    // Speaker photo — click + drag-drop (#3)
+    const photoDropEl = $("#q-photo-drop");
+    photoDropEl.addEventListener("click", () => $("#q-photo").click());
     $("#q-photo").addEventListener("change", e => {
       const f = e.target.files[0]; if (!f) return;
-      const img = new Image();
-      img.onload = () => { QT.state.photo = img; QT.invalidate(); onChange && onChange(); };
-      img.src = URL.createObjectURL(f);
-      $("#q-photo-drop").textContent = f.name;
+      loadPhotoFile(f, photoDropEl, onChange);
     });
+    wireDropZone(photoDropEl, f => loadPhotoFile(f, photoDropEl, onChange));
+
     const pa = () => { QT.invalidate(); onChange && onChange(); };
     $("#pa-scale").addEventListener("input", e => { QT.state.photoAdjust.scale = e.target.value / 100; pa(); });
     $("#pa-x").addEventListener("input", e => { QT.state.photoAdjust.ox = e.target.value / 100; pa(); });
     $("#pa-y").addEventListener("input", e => { QT.state.photoAdjust.oy = e.target.value / 100; pa(); });
 
-    // background presets
+    // Background presets
     const bgWrap = $("#q-bg");
     QT.BG_PRESETS.forEach((label, idx) => {
       const b = document.createElement("button");
@@ -143,7 +138,8 @@ window.QuoteTemplate = (function () {
       });
       bgWrap.appendChild(b);
     });
-    // generated background library
+
+    // Background library
     const libWrap = $("#q-bg-lib");
     QT.BG_LIBRARY.forEach(name => {
       const src = "assets/backgrounds/" + name + ".png";
@@ -162,26 +158,51 @@ window.QuoteTemplate = (function () {
       });
       libWrap.appendChild(th);
     });
-    $("#q-bg-drop").addEventListener("click", () => $("#q-bg-file").click());
+
+    // Background upload — click + drag-drop (#3)
+    const bgDropEl = $("#q-bg-drop");
+    bgDropEl.addEventListener("click", () => $("#q-bg-file").click());
     $("#q-bg-file").addEventListener("change", e => {
       const f = e.target.files[0]; if (!f) return;
-      const img = new Image();
-      img.onload = () => {
-        QT.state.bg = { type: "image", preset: QT.state.bg.preset, image: img };
-        [...bgWrap.children].forEach(c => c.classList.remove("active"));
-        [...libWrap.children].forEach(c => c.classList.remove("active"));
-        QT.invalidate(); onChange && onChange();
-      };
-      img.src = URL.createObjectURL(f);
-      $("#q-bg-drop").textContent = f.name;
+      loadBgFile(f, bgDropEl, bgWrap, libWrap, onChange);
     });
+    wireDropZone(bgDropEl, f => loadBgFile(f, bgDropEl, bgWrap, libWrap, onChange));
+
     $("#q-bg-ai").addEventListener("click", () => {
-      alert("✨ generate more background options\n\nGenerates additional on-brand backgrounds. Wired at design time so the final tool stays free to run. Photographic style + provider pending your call.");
+      alert("✨ generate more background options\n\nGenerates additional on-brand backgrounds. Wired at design time so the final tool stays free to run.");
     });
     $("#q-ai").addEventListener("click", () => {
-      alert("✨ help with text\n\nUses the central free key on a cheap model by default; users can paste their own API key in settings. Network call wired at deploy time.");
+      alert("✨ help with text\n\nUses the central free key on a cheap model by default; users can paste their own API key in settings.");
     });
   };
+
+  /* ---- drag-drop helper (improvement #3) ---- */
+  function wireDropZone(el, onFile) {
+    el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("drag-over"); });
+    el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
+    el.addEventListener("drop", e => {
+      e.preventDefault(); el.classList.remove("drag-over");
+      const f = e.dataTransfer.files[0]; if (!f || !f.type.startsWith("image/")) return;
+      onFile(f);
+    });
+  }
+  function loadPhotoFile(f, dropEl, onChange) {
+    const img = new Image();
+    img.onload = () => { QT.state.photo = img; QT.invalidate(); onChange && onChange(); };
+    img.src = URL.createObjectURL(f);
+    dropEl.textContent = f.name;
+  }
+  function loadBgFile(f, dropEl, bgWrap, libWrap, onChange) {
+    const img = new Image();
+    img.onload = () => {
+      QT.state.bg = { type: "image", preset: QT.state.bg.preset, image: img };
+      [...bgWrap.children].forEach(c => c.classList.remove("active"));
+      [...libWrap.children].forEach(c => c.classList.remove("active"));
+      QT.invalidate(); onChange && onChange();
+    };
+    img.src = URL.createObjectURL(f);
+    dropEl.textContent = f.name;
+  }
 
   QT.invalidate = function () { QT._sig = ""; };
 
@@ -257,7 +278,7 @@ window.QuoteTemplate = (function () {
     ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.closePath(); ctx.clip();
     const ar = img.naturalWidth / img.naturalHeight;
     let dw = rad * 2, dh = rad * 2;
-    if (ar > 1) dw = dh * ar; else dh = dw / ar;     // cover
+    if (ar > 1) dw = dh * ar; else dh = dw / ar;
     dw *= adj.scale; dh *= adj.scale;
     const ccx = cx + adj.ox * rad, ccy = cy + adj.oy * rad;
     ctx.drawImage(img, ccx - dw / 2, ccy - dh / 2, dw, dh);
@@ -330,6 +351,73 @@ window.QuoteTemplate = (function () {
     ctx.restore();
   }
 
+  /* ---------------- lower-third (improvement #10) ---------------- */
+  function drawLowerThird(ctx, W, H, P, bk, t) {
+    const lt = bk.lowerThird;
+    if (!lt) return;
+
+    const enter = T.tween(t, 0.6, 0.5, 0, 1, "out");
+    const exit  = T.tween(t, QT.duration - 1.2, 0.5, 0, 1, "inOut");
+    const alpha = enter * (1 - exit);
+    if (alpha <= 0) return;
+
+    const name  = QT.state.name  || "";
+    const title = QT.state.title || "";
+    if (!name && !title) return;
+
+    const barH     = Math.round(H * 0.095);
+    const barY     = H - barH - Math.round(H * 0.055);
+    const nameSize = Math.round(H * 0.038);
+    const subSize  = Math.round(H * 0.024);
+    const margin   = Math.round(W * 0.072);
+    const accentW  = Math.round(W * 0.005);
+    const textX    = margin + (lt.accentBar ? accentW + Math.round(W * 0.018) : 0);
+    const slideIn  = (1 - enter) * Math.round(W * 0.04);
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.translate(slideIn, 0);
+
+    // Background bar or underline
+    if (lt.style === "bar" || lt.style === "block") {
+      const bg = lt.style === "block" ? P.bg : "rgba(0,0,0,0.55)";
+      roundRect(ctx, margin - Math.round(W*0.015), barY - Math.round(H*0.015),
+        Math.round(W * 0.5), barH + Math.round(H*0.030), Math.round(H*0.008));
+      ctx.fillStyle = bg; ctx.fill();
+    }
+
+    // Accent bar
+    if (lt.accentBar) {
+      ctx.fillStyle = P.accent;
+      ctx.fillRect(margin, barY, accentW, barH);
+    }
+
+    // Name
+    ctx.fillStyle = P.ink;
+    ctx.font = `700 ${nameSize}px "${bk.fonts.display}", "ArchivoNarrow", sans-serif`;
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.fillText(name, textX, barY + nameSize * 1.05);
+
+    // Underline style
+    if (lt.style === "underline") {
+      ctx.strokeStyle = P.accent; ctx.lineWidth = Math.round(H * 0.003);
+      ctx.beginPath();
+      const uw = ctx.measureText(name).width;
+      ctx.moveTo(textX, barY + nameSize * 1.14);
+      ctx.lineTo(textX + uw, barY + nameSize * 1.14);
+      ctx.stroke();
+    }
+
+    // Title / source
+    if (title) {
+      ctx.fillStyle = P.muted;
+      ctx.font = `400 ${subSize}px "ArchivoNarrow", sans-serif`;
+      ctx.fillText(title, textX, barY + nameSize * 1.10 + subSize * 1.3);
+    }
+
+    ctx.restore();
+  }
+
   /* ---------------- quote text (inside camera) ---------------- */
   function drawQuoteText(ctx, L, t, P, bk, cam) {
     const size = L.size;
@@ -344,7 +432,6 @@ window.QuoteTemplate = (function () {
       ctx.fill(); ctx.restore();
     }
 
-    // accent bar + opening glyph
     ctx.save(); ctx.globalAlpha = textEnter;
     ctx.fillStyle = P.accent;
     ctx.fillRect(L.margin - Math.round(size*0.45), L.topY - Math.round(size*1.0), Math.round(size*0.16), L.lineH * L.lineCount + size*0.6);
@@ -354,7 +441,6 @@ window.QuoteTemplate = (function () {
     ctx.fillText("“", L.margin - Math.round(size*0.1), L.topY - Math.round(size*0.55));
     ctx.restore();
 
-    // words
     ctx.font = `700 ${size}px "${bk.fonts.display}", "Archy", sans-serif`;
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 
@@ -393,15 +479,14 @@ window.QuoteTemplate = (function () {
     if (clipped) ctx.restore();
   }
 
-  /* ---------------- attribution (screen space, own animation) ---------------- */
+  /* ---------------- attribution (screen space) ---------------- */
   function drawAttribution(ctx, W, H, P, bk, t) {
-    const photoEnter = T.tween(t, 0.15, 0.6, 0, 1, "out");   // earliest
-    const nameEnter = T.tween(t, 1.5, 0.7, 0, 1, "out");      // after the rest
-    const attrY = Math.round(H * 0.80);
+    const photoEnter = T.tween(t, 0.15, 0.6, 0, 1, "out");
+    const nameEnter  = T.tween(t, 1.5, 0.7, 0, 1, "out");
+    const attrY  = Math.round(H * 0.80);
     const photoR = Math.round(H * 0.075);
     const photoCx = Math.round(W * 0.072) + photoR;
 
-    // photo with its own gentle scale-in (independent of text camera)
     ctx.save();
     ctx.globalAlpha = photoEnter;
     const rr = photoR * (0.92 + 0.08 * photoEnter);
@@ -418,7 +503,6 @@ window.QuoteTemplate = (function () {
     }
     ctx.restore();
 
-    // name + title with a small slide-up of their own
     const slide = (1 - nameEnter) * 16;
     ctx.save(); ctx.globalAlpha = nameEnter;
     const tx = photoCx + photoR + Math.round(W * 0.022);
@@ -441,7 +525,6 @@ window.QuoteTemplate = (function () {
 
     drawBackground(ctx, W, H, P, QT.state.bg);
 
-    // camera space: quote text + underline only
     const focus = QT.tt.sel ? QT.tt.focusRect(selectedRects(L), 36) : null;
     const cam = camera(t, focus, W, H);
     ctx.save();
@@ -452,9 +535,10 @@ window.QuoteTemplate = (function () {
     QT.tt.drawUnderline(ctx, selectedRects(L), up, { color: P.accent2, weight: Math.round(L.size * 0.12), gap: Math.round(L.size * 0.22) });
     ctx.restore();
 
-    // screen space: photo + name (static position, own subtle entrance)
+    // screen space: photo + name attribution
     drawAttribution(ctx, W, H, P, bk, t);
-
+    // screen space: lower-third (improvement #10)
+    drawLowerThird(ctx, W, H, P, bk, t);
     // screen space: logo
     drawLogo(ctx, W, H, bk);
   };

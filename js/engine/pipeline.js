@@ -8,14 +8,34 @@
  *
  * Templates register a single source of truth: drawFrame(ctx, t). Because the
  * preview and the render both call the same drawFrame, what you see is what you get.
+ *
+ * Improvements applied:
+ *   - HiDPI / devicePixelRatio aware: canvas backing store scales by dpr, CSS
+ *     size stays as set. On Retina screens text is sharp instead of blurry.
+ *   - loop flag: when false, playback stops at end instead of looping.
  */
 window.Pipeline = (function () {
   let cv, ctx, dpr = 1;
   let duration = 6, fps = 25;
   let drawFrame = (c, t) => {};
   let onTick = null;
+  let loop = true;  // loop flag: true = loop preview, false = stop at end
 
   let playing = false, raf = 0, startWall = 0, baseT = 0;
+
+  function applyDpr() {
+    // Scale the canvas backing store by dpr; keep CSS pixel size unchanged.
+    dpr = Math.max(1, Math.round(window.devicePixelRatio || 1));
+    const cssW = cv.width  / (cv._dprApplied || 1);
+    const cssH = cv.height / (cv._dprApplied || 1);
+    cv.style.width  = cssW + "px";
+    cv.style.height = cssH + "px";
+    cv.width  = cssW * dpr;
+    cv.height = cssH * dpr;
+    cv._dprApplied = dpr;
+    ctx = cv.getContext("2d");
+    ctx.scale(dpr, dpr);
+  }
 
   function mount(opts) {
     cv = opts.canvas;
@@ -24,32 +44,64 @@ window.Pipeline = (function () {
     duration = opts.duration || duration;
     fps = opts.fps || fps;
     onTick = opts.onTick || null;
+    applyDpr();
     seekFraction(0);
   }
 
-  function setTemplate(d, dur) { drawFrame = d; if (dur) duration = dur; seekFraction(0); }
+  function setTemplate(d, dur) {
+    drawFrame = d;
+    if (dur) duration = dur;
+    seekFraction(0);
+  }
   function setFps(f) { fps = f; }
-  function setDuration(d) { duration = d; }
-  function resize(w, h) { cv.width = w; cv.height = h; renderAt(currentT()); }
+  function setDuration(d) {
+    duration = d;
+    // clamp current position
+    if (_t > duration) seekFraction(1);
+  }
+  function setLoop(v) { loop = !!v; }
+
+  function resize(w, h) {
+    // w/h are logical (CSS) pixels; dpr scaling is applied on top.
+    cv._dprApplied = 1; // reset so applyDpr re-reads correctly
+    cv.width  = w;
+    cv.height = h;
+    applyDpr();
+    renderAt(currentT());
+  }
 
   let _t = 0;
   function currentT() { return _t; }
 
   function renderAt(t) {
     _t = Math.max(0, Math.min(duration, t));
+    ctx.save();
+    // Templates draw in logical pixels (1920×1080 etc.). The dpr scale is already
+    // on the context from applyDpr(), so we just call drawFrame.
     drawFrame(ctx, _t);
+    ctx.restore();
     if (onTick) onTick(_t / duration, _t);
   }
 
   function seekFraction(p) { renderAt(p * duration); }
 
-  function loop() {
+  function _loop() {
     if (!playing) return;
     const now = performance.now();
     let t = baseT + (now - startWall) / 1000;
-    if (t >= duration) { t = 0; baseT = 0; startWall = now; } // loop preview
+    if (t >= duration) {
+      if (loop) {
+        t = 0; baseT = 0; startWall = now;
+      } else {
+        t = duration;
+        playing = false;
+        renderAt(t);
+        if (onTick) onTick(1, t);
+        return;
+      }
+    }
     renderAt(t);
-    raf = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(_loop);
   }
 
   function play() {
@@ -57,7 +109,7 @@ window.Pipeline = (function () {
     playing = true;
     startWall = performance.now();
     baseT = _t >= duration ? 0 : _t;
-    loop();
+    _loop();
   }
   function pause() { playing = false; cancelAnimationFrame(raf); }
   function toggle() { playing ? pause() : play(); return playing; }
@@ -88,6 +140,7 @@ window.Pipeline = (function () {
 
         rec.start(100);
         const t0 = performance.now();
+        // render frames bypassing the dpr scale (captureStream sees the real canvas pixels)
         (function drive() {
           const t = (performance.now() - t0) / 1000;
           renderAt(Math.min(t, duration));
@@ -99,10 +152,7 @@ window.Pipeline = (function () {
     });
   }
 
-  /* ---------- MP4 via ffmpeg.wasm (single-thread, no SharedArrayBuffer) ----------
-   * Lazy-loads the UMD build from CDN on first use. If anything fails (offline,
-   * CDN blocked, unsupported), we resolve the WebM so the user still gets a file.
-   * Never throws to the caller -> the tab cannot crash from this path. */
+  /* ---------- MP4 via ffmpeg.wasm ---------- */
   let _ffmpeg = null;
   function loadScript(src) {
     return new Promise((res, rej) => {
@@ -149,9 +199,11 @@ window.Pipeline = (function () {
   }
 
   return {
-    mount, setTemplate, setFps, setDuration, resize,
+    mount, setTemplate, setFps, setDuration, setLoop, resize,
     play, pause, toggle, restart, seekFraction, renderAt, currentT,
     renderWebM, renderMP4, exportFile,
-    get duration() { return duration; }, get fps() { return fps; },
+    get duration() { return duration; },
+    get fps() { return fps; },
+    get loop() { return loop; },
   };
 })();

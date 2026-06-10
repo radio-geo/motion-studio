@@ -1,5 +1,13 @@
 /* app.js — studio controller.
  * Login -> studio. Template registry, panels, transport, brand kit, export.
+ *
+ * Improvements in this revision:
+ *   #3  drag-drop on background upload (wired in quote.js editor build)
+ *   #4  keyboard shortcuts: Space=play/pause, R=restart, ←/→=step frame, Esc=pause
+ *   #5  time display on scrubber  (MM:SS.f / total)
+ *   #6  duration segment control  (5 / 7 / 10 / 15 s)
+ *   #7  custom accent color picker in Brand Kit
+ *   #9  Georgian locale toggle in Brand Kit panel
  */
 (function () {
   const TEMPLATES = [window.QuoteTemplate, window.SocialTemplate, window.SlideshowTemplate];
@@ -32,7 +40,6 @@
   }
 
   async function preloadFonts() {
-    // English version: load the Latin faces used by UI + canvas content.
     const faces = ['700 40px "ArchivoNarrow"', '600 40px "ArchivoNarrow"', '400 40px "ArchivoNarrow"', '400 40px "AbrilFatface"'];
     try { await Promise.all(faces.map(f => document.fonts.load(f, "Ag"))); await document.fonts.ready; }
     catch (e) { /* fonts still resolve via font-display */ }
@@ -50,7 +57,10 @@
       drawFrame: (ctx, t) => active.drawFrame(ctx, t),
       duration: active.duration,
       fps: 25,
-      onTick: (frac) => { $("#scrub").value = Math.round(frac * 1000); },
+      onTick: (frac, t) => {
+        $("#scrub").value = Math.round(frac * 1000);
+        updateTimeDisplay(t);
+      },
     });
 
     buildBrandPanel();
@@ -59,9 +69,9 @@
 
     wireTransport();
     wireSegs();
+    wireKeyboard();
     $("#logout-btn").addEventListener("click", () => { window.Auth.signOut(); location.reload(); });
 
-    // try to auto-load a Droeba logo if it was dropped in /assets/brand
     tryAutoLogo();
   }
 
@@ -80,16 +90,45 @@
   function loadTemplate(tpl) {
     window.Pipeline.pause();
     window.Pipeline.setTemplate((ctx, t) => tpl.drawFrame(ctx, t), tpl.duration);
+    // sync duration seg to the template's duration
+    syncDurationSeg(tpl.duration);
     tpl.editor($("#editor-panel"), redraw);
     redraw();
   }
 
   function redraw() { window.Pipeline.renderAt(window.Pipeline.currentT()); }
 
+  /* ---------- time display ---------- */
+  function updateTimeDisplay(t) {
+    const el = $("#time-display");
+    if (!el) return;
+    const fmt = s => {
+      const m = Math.floor(s / 60), sec = s % 60;
+      return (m > 0 ? m + ":" : "") + sec.toFixed(1).padStart(m > 0 ? 4 : 3, "0");
+    };
+    el.textContent = fmt(t) + " / " + fmt(window.Pipeline.duration);
+  }
+
   /* ---------- transport + segments ---------- */
   function wireTransport() {
     const playBtn = $("#play-btn");
-    playBtn.addEventListener("click", () => { playBtn.textContent = window.Pipeline.toggle() ? "Pause" : "Play"; });
+
+    // Loop toggle (improvement #8)
+    const loopBtn = $("#loop-btn");
+    let loopOn = true;
+    window.Pipeline.setLoop(true);
+    loopBtn && loopBtn.addEventListener("click", () => {
+      loopOn = !loopOn;
+      window.Pipeline.setLoop(loopOn);
+      loopBtn.classList.toggle("active", loopOn);
+      loopBtn.title = loopOn ? "Loop on (click to turn off)" : "Loop off (click to turn on)";
+    });
+    if (loopBtn) { loopBtn.classList.add("active"); loopBtn.title = "Loop on (click to turn off)"; }
+
+    playBtn.addEventListener("click", () => {
+      const nowPlaying = window.Pipeline.toggle();
+      playBtn.textContent = nowPlaying ? "Pause" : "Play";
+    });
     $("#restart-btn").addEventListener("click", () => { window.Pipeline.restart(); playBtn.textContent = "Play"; });
     $("#scrub").addEventListener("input", e => {
       window.Pipeline.pause(); playBtn.textContent = "Play";
@@ -97,6 +136,40 @@
     });
   }
 
+  /* ---------- keyboard shortcuts (improvement #4) ---------- */
+  function wireKeyboard() {
+    const playBtn = $("#play-btn");
+    document.addEventListener("keydown", e => {
+      // Ignore when typing in an input / textarea / select
+      const tag = (e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+      const FRAME = 1 / (window.Pipeline.fps || 25);
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        const nowPlaying = window.Pipeline.toggle();
+        playBtn.textContent = nowPlaying ? "Pause" : "Play";
+      } else if (e.code === "KeyR") {
+        e.preventDefault();
+        window.Pipeline.restart();
+        playBtn.textContent = "Play";
+      } else if (e.code === "ArrowRight") {
+        e.preventDefault();
+        window.Pipeline.pause(); playBtn.textContent = "Play";
+        window.Pipeline.renderAt(window.Pipeline.currentT() + FRAME);
+      } else if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        window.Pipeline.pause(); playBtn.textContent = "Play";
+        window.Pipeline.renderAt(window.Pipeline.currentT() - FRAME);
+      } else if (e.code === "Escape") {
+        e.preventDefault();
+        window.Pipeline.pause(); playBtn.textContent = "Play";
+      }
+    });
+  }
+
+  /* ---------- aspect + fps + duration segments ---------- */
   function wireSegs() {
     $("#aspect-seg").addEventListener("click", e => {
       const b = e.target.closest("button"); if (!b) return;
@@ -112,23 +185,65 @@
       [...e.currentTarget.children].forEach(c => c.classList.toggle("active", c === b));
       window.Pipeline.setFps(parseInt(b.dataset.fps, 10));
     });
+
+    // Duration segment (improvement #6)
+    const durSeg = $("#dur-seg");
+    if (durSeg) {
+      durSeg.addEventListener("click", e => {
+        const b = e.target.closest("button"); if (!b || !b.dataset.dur) return;
+        const d = parseFloat(b.dataset.dur);
+        [...durSeg.children].forEach(c => c.classList.toggle("active", c === b));
+        window.Pipeline.setDuration(d);
+        active.duration = d;
+        updateTimeDisplay(window.Pipeline.currentT());
+      });
+    }
   }
 
-  /* ---------- brand kit panel (shared across templates) ---------- */
+  function syncDurationSeg(dur) {
+    const durSeg = $("#dur-seg"); if (!durSeg) return;
+    const DURATIONS = [5, 7, 10, 15];
+    // pick closest
+    let best = DURATIONS.reduce((a, b) => Math.abs(b - dur) < Math.abs(a - dur) ? b : a);
+    [...durSeg.children].forEach(b => {
+      const d = parseFloat(b.dataset.dur);
+      b.classList.toggle("active", d === best);
+    });
+  }
+
+  /* ---------- brand kit panel ---------- */
   function buildBrandPanel() {
     const bk = window.BrandKit.get();
     const el = $("#brandkit-panel");
     const accents = ["#c1121f", "#e8b400", "#2563eb", "#10803a", "#111418"];
     const positions = ["tl","tc","tr","ml","mc","mr","bl","bc","br"];
+
     el.innerHTML = `
       <div class="section-title">Brand kit — ${bk.name}</div>
+
+      <!-- Locale toggle (improvement #9) -->
+      <div class="field">
+        <label>Language / ენა</label>
+        <div class="seg" id="locale-seg" style="width:fit-content">
+          <button data-locale="en" class="active">EN</button>
+          <button data-locale="ge">GE</button>
+        </div>
+      </div>
+
       <div class="field">
         <label>Accent color</label>
-        <div class="swatches" id="bk-swatches"></div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div class="swatches" id="bk-swatches"></div>
+          <!-- Custom color picker (improvement #7) -->
+          <input type="color" id="bk-custom-color" value="${bk.palette.accent}"
+            title="Custom accent color"
+            style="width:30px;height:30px;border-radius:6px;border:2px solid var(--line);background:none;cursor:pointer;padding:0" />
+        </div>
       </div>
+
       <div class="field">
         <label>Logo</label>
-        <div class="logo-drop" id="bk-logo-drop">Click to upload logo (or drop in /assets/brand)</div>
+        <div class="logo-drop" id="bk-logo-drop">Click or drop a logo file</div>
         <input type="file" id="bk-logo" accept="image/*" hidden />
       </div>
       <div class="field">
@@ -136,6 +251,18 @@
         <div class="pos-grid" id="bk-pos"></div>
       </div>`;
 
+    // Locale toggle
+    const localeSeg = $("#locale-seg");
+    localeSeg.addEventListener("click", e => {
+      const b = e.target.closest("button"); if (!b || !b.dataset.locale) return;
+      [...localeSeg.children].forEach(c => c.classList.toggle("active", c === b));
+      window.BrandKit.setLocale(b.dataset.locale);
+      // Invalidate every template that tracks layout sig
+      TEMPLATES.forEach(t => t.invalidate && t.invalidate());
+      redraw();
+    });
+
+    // Swatches
     const sw = $("#bk-swatches");
     accents.forEach(c => {
       const d = document.createElement("div");
@@ -143,12 +270,22 @@
       d.style.background = c;
       d.addEventListener("click", () => {
         window.BrandKit.setAccent(c);
+        $("#bk-custom-color").value = c;
         [...sw.children].forEach(x => x.classList.toggle("active", x === d));
         redraw();
       });
       sw.appendChild(d);
     });
 
+    // Custom color picker (improvement #7)
+    const colorPicker = $("#bk-custom-color");
+    colorPicker.addEventListener("input", e => {
+      window.BrandKit.setAccent(e.target.value);
+      [...sw.children].forEach(x => x.classList.remove("active"));
+      redraw();
+    });
+
+    // Logo position
     const pg = $("#bk-pos");
     positions.forEach(p => {
       const b = document.createElement("button");
@@ -161,11 +298,23 @@
       pg.appendChild(b);
     });
 
-    $("#bk-logo-drop").addEventListener("click", () => $("#bk-logo").click());
+    // Logo upload (click)
+    const logoDrop = $("#bk-logo-drop");
+    logoDrop.addEventListener("click", () => $("#bk-logo").click());
     $("#bk-logo").addEventListener("change", async e => {
       const f = e.target.files[0]; if (!f) return;
       await window.BrandKit.setLogo(URL.createObjectURL(f));
-      $("#bk-logo-drop").textContent = f.name;
+      logoDrop.textContent = f.name;
+      redraw();
+    });
+    // Logo drop (improvement #3 applies here too)
+    logoDrop.addEventListener("dragover", e => { e.preventDefault(); logoDrop.classList.add("drag-over"); });
+    logoDrop.addEventListener("dragleave", () => logoDrop.classList.remove("drag-over"));
+    logoDrop.addEventListener("drop", async e => {
+      e.preventDefault(); logoDrop.classList.remove("drag-over");
+      const f = e.dataTransfer.files[0]; if (!f || !f.type.startsWith("image/")) return;
+      await window.BrandKit.setLogo(URL.createObjectURL(f));
+      logoDrop.textContent = f.name;
       redraw();
     });
   }
