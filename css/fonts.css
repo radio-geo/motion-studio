@@ -1,0 +1,65 @@
+/* ---- LATIN faces (English version: UI + content) ---- */
+@font-face {
+  font-family: "ArchivoNarrow";
+  src: url("../fonts/ArchivoNarrow-Regular.ttf") format("truetype");
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: "ArchivoNarrow";
+  src: url("../fonts/ArchivoNarrow-SemiBold.ttf") format("truetype");
+  font-weight: 600; font-display: swap;
+}
+@font-face {
+  font-family: "ArchivoNarrow";
+  src: url("../fonts/ArchivoNarrow-Bold.ttf") format("truetype");
+  font-weight: 700; font-display: swap;
+}
+@font-face {
+  font-family: "AbrilFatface";
+  src: url("../fonts/AbrilFatface-Regular.ttf") format("truetype");
+  font-weight: 400; font-display: swap;
+}
+
+/* ---- GEORGIAN faces (dormant until locale = ge). ---- */
+/* NOTE: archyedt / ar-archy are legacy fonts that map Latin keys to Georgian */
+/* glyphs, so they must ONLY render Georgian text, never English UI. */
+
+@font-face {
+  font-family: "ArchyEdit";
+  src: url("../fonts/archyedt-bold.otf") format("opentype");
+  font-weight: 700;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "Archy";
+  src: url("../fonts/ar-archy-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: "Archy";
+  src: url("../fonts/ar-archy-semibold.ttf") format("truetype");
+  font-weight: 600;
+  font-display: block;
+}
+@font-face {
+  font-family: "Archy";
+  src: url("../fonts/ar-archy-extralight.ttf") format("truetype");
+  font-weight: 200;
+  font-display: block;
+}
+
+/* Mtavruli (all-caps Georgian) face, kept available for brand-kit lower-thirds */
+@font-face {
+  font-family: "MtavruliSquare";
+  src: url("../fonts/bpg_extrasquare_mtavruli.ttf") format("truetype");
+  font-weight: 700;
+  font-display: block;
+}
+@font-face {
+  font-family: "MtavruliAcad";
+  src: url("../fonts/acadmtavr.ttf") format("truetype");
+  font-weight: 400;
+  font-display: block;
+}

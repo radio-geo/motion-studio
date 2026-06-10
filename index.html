@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ka">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Motion Studio</title>
+<link rel="stylesheet" href="css/fonts.css" />
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login-screen" class="screen login">
+  <div class="login-card">
+    <div class="login-logo">Motion<span>Studio</span></div>
+    <p class="login-sub">Broadcast-quality motion graphics. Free, in your browser.</p>
+    <form id="login-form" autocomplete="off">
+      <label>User <input id="login-user" type="text" placeholder="user" /></label>
+      <label>Password <input id="login-pass" type="password" placeholder="123" /></label>
+      <button type="submit" class="btn primary">Sign in</button>
+      <p id="login-error" class="login-error" hidden>Wrong user or password.</p>
+    </form>
+    <div class="login-dormant">
+      <button class="btn ghost" disabled title="Coming later">Continue with Google</button>
+      <button class="btn ghost" disabled title="Coming later">Email sign-in</button>
+      <span class="tag-later">scaffolded, dormant</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ STUDIO ============ -->
+<div id="studio-screen" class="screen studio" hidden>
+  <header class="topbar">
+    <div class="brand">Motion<span>Studio</span></div>
+    <nav class="template-tabs" id="template-tabs"></nav>
+    <div class="topbar-right">
+      <span id="active-user" class="who"></span>
+      <button id="logout-btn" class="btn ghost small">Sign out</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <!-- LEFT: editor panel -->
+    <section class="panel editor" id="editor-panel"></section>
+
+    <!-- CENTER: stage / preview -->
+    <section class="stage-wrap">
+      <div class="stage-toolbar">
+        <div class="seg" id="aspect-seg">
+          <button data-aspect="16:9" class="active">16:9</button>
+          <button data-aspect="9:16">9:16</button>
+        </div>
+        <div class="seg" id="fps-seg">
+          <button data-fps="25" class="active">25 fps</button>
+          <button data-fps="50">50 fps</button>
+        </div>
+        <div class="transport">
+          <button id="play-btn" class="btn small">Play</button>
+          <button id="restart-btn" class="btn ghost small">Restart</button>
+        </div>
+      </div>
+
+      <div class="stage-frame" id="stage-frame">
+        <canvas id="stage-canvas" width="1920" height="1080"></canvas>
+        <!-- selection overlay lives in editor, not on canvas -->
+      </div>
+
+      <div class="scrubber">
+        <input id="scrub" type="range" min="0" max="1000" value="0" />
+      </div>
+    </section>
+
+    <!-- RIGHT: brand kit + export -->
+    <aside class="panel side">
+      <div class="side-section" id="brandkit-panel"></div>
+      <div class="side-section" id="export-panel"></div>
+    </aside>
+  </main>
+</div>
+
+<!-- modules -->
+<script src="js/config/placeholders.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/engine/timeline.js"></script>
+<script src="js/engine/text-targeting.js"></script>
+<script src="js/engine/brand-kit.js"></script>
+<script src="js/engine/pipeline.js"></script>
+<script src="js/templates/quote.js"></script>
+<script src="js/templates/social.js"></script>
+<script src="js/templates/slideshow.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# deps (none needed at runtime; app is static)
+node_modules/
+
+# local scratch
+/outputs/
