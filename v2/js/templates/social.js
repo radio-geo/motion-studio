@@ -605,10 +605,12 @@ window.SocialTemplate = (function () {
     bg.addColorStop(0, P.bg0); bg.addColorStop(1, P.bg1);
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
-    // Platform color vignette
+    // Platform color vignette (fixed: proper hex -> rgba conversion)
     const vig = ctx.createRadialGradient(W/2, H/2, H*0.1, W/2, H/2, H*0.8);
-    vig.addColorStop(0, P.accentBar.replace('#', 'rgba(') + ',0.07)' );
-    // fallback vignette
+    const _ai = parseInt((P.accentBar || '#1877f2').slice(1), 16);
+    vig.addColorStop(0, 'rgba(' + ((_ai>>16)&255) + ',' + ((_ai>>8)&255) + ',' + (_ai&255) + ',0.07)');
+    vig.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = vig; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(0, 0, W, H);
 
     const cardEnter = T.tween(t, 0.2, 0.6, 0, 1, 'out');
