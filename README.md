@@ -3,6 +3,12 @@
 Free, self-hosted, browser-side motion graphics for editors and journalists.
 No render API, no server cost. Renders in the browser via canvas + MediaRecorder.
 
+## Two versions live
+- **V2 (current): `/v2/`** — new engine. Frame-accurate WebCodecs export (real MP4, no ffmpeg.wasm,
+  no SharedArrayBuffer), per-element inspector, two-stage phrase motion, background system,
+  breathing ambient motion, designed exits, project save/autosave. See `STATUS.md`.
+- **V1 (root)** — original build, kept as-is for reference.
+
 ## Run locally
 It is pure static HTML/CSS/JS. Serve the folder (needed for font + module loading):
 
@@ -31,12 +37,4 @@ Templates expose one `drawFrame(ctx, t)`, so the preview and the export are iden
 
 ## Coming later (switches, not rewrites — see `js/config/placeholders.js`)
 4K export, ProRes 4444 / alpha .mov, server-side render, AI icon generation,
-connector asset library + Drive delivery. All labeled and greyed in the UI.
-
-## Fonts
-Georgian faces live in `/fonts`. Quote display font: `archyedt-bold` (ArchyEdit).
-Mtavruli faces available for lower-thirds. Swap the Droeba font once the brand sheet lands.
-
-## Deploy
-Static host (Vercel / Cloudflare Pages). For the MP4 (ffmpeg.wasm) path, set
-COOP/COEP headers so SharedArrayBuffer is available.
+connector asset library + Drive deliver
