@@ -83,20 +83,32 @@ window.TextTargeting = (function () {
       const color  = opts.color || "#e8b400";
       const weight = opts.weight || 8;
       const gap    = opts.gap != null ? opts.gap : 10;
-      const total  = rects.reduce((s, r) => s + r.w, 0);
+      /* merge words on the same baseline into one continuous rule */
+      const lines = [];
+      let cur = null;
+      for (const r of rects) {
+        const base = r.baseline != null ? r.baseline : r.y + r.h;
+        if (cur && Math.abs(base - cur.base) < 2) {
+          cur.x0 = Math.min(cur.x0, r.x);
+          cur.x1 = Math.max(cur.x1, r.x + r.w);
+        } else {
+          cur = { base: base, x0: r.x, x1: r.x + r.w };
+          lines.push(cur);
+        }
+      }
+      const total = lines.reduce((s, l) => s + (l.x1 - l.x0), 0);
       let drawn = total * Math.min(prog, 1);
 
       ctx.save();
       ctx.strokeStyle = color;
       ctx.lineWidth = weight;
       ctx.lineCap = "round";
-      for (const r of rects) {
+      for (const l of lines) {
         if (drawn <= 0) break;
-        const seg = Math.min(r.w, drawn);
-        const y = (r.baseline != null ? r.baseline : r.y + r.h) + gap;
+        const seg = Math.min(l.x1 - l.x0, drawn);
         ctx.beginPath();
-        ctx.moveTo(r.x, y);
-        ctx.lineTo(r.x + seg, y);
+        ctx.moveTo(l.x0, l.base + gap);
+        ctx.lineTo(l.x0 + seg, l.base + gap);
         ctx.stroke();
         drawn -= seg;
       }

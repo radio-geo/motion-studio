@@ -47,7 +47,7 @@ a{color:var(--accent)}
 .login-card{width:380px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:36px 32px;text-align:center}
 .login-logo{font-size:30px;font-weight:700;letter-spacing:.4px}
 .login-logo span{color:var(--accent)}
-.v2-badge{display:inline-block;margin-left:8px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px;vertical-align:middle}
+.v2-badge,.brand .v2-badge,.login-logo .v2-badge{display:inline-block;margin-left:8px;background:var(--accent);color:#fff;font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px;vertical-align:middle}
 .login-sub{color:var(--muted);font-size:13px;margin:8px 0 24px}
 #login-form label{display:block;text-align:left;font-size:12px;color:var(--muted);margin-bottom:12px}
 #login-form input{width:100%;margin-top:5px;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--text);font-size:14px}
@@ -86,9 +86,8 @@ a{color:var(--accent)}
 .stage-wrap{display:flex;flex-direction:column;min-width:0;background:#07090b;overflow:hidden}
 .stage-toolbar{
   display:flex;align-items:center;gap:8px;padding:8px 12px;
-  border-bottom:1px solid var(--line);flex-wrap:nowrap;overflow-x:auto;flex-shrink:0;background:var(--panel);
+  border-bottom:1px solid var(--line);flex-wrap:wrap;row-gap:6px;flex-shrink:0;background:var(--panel);
 }
-.stage-toolbar::-webkit-scrollbar{height:0}
 .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;flex-shrink:0}
 .seg button{background:var(--panel-2);border:none;color:var(--muted);padding:5px 10px;cursor:pointer;font-size:12px;white-space:nowrap}
 .seg button.active{background:var(--accent);color:#fff}

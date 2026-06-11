@@ -32,7 +32,7 @@ window.Lang = (function () {
     /* inspector */
     inspectorTitle:'Inspector',
     inspectorHint:'Click an element on the canvas, or pick one below. Drag across words in the preview to target a phrase.',
-    elBackground:'Background',elTitle:'Title',elQuote:'Quote',elPhrase:'Phrase',elAuthor:'Author',elLogo:'Logo',
+    elBackground:'Background',elTitle:'Title',elQuote:'Quote',elPhrase:'Phrase',elAttribution:'Author',elLogo:'Logo',
     /* motion */
     motionTitle:'Motion',breathing:'Ambient motion (breathing)',
     breathOff:'Off',breathSubtle:'Subtle',breathNormal:'Normal',breathStrong:'Strong',
@@ -122,7 +122,7 @@ window.Lang = (function () {
     resetConfirm:'გავანულოთ მიმდინარე პროექტი? შეუნახავი ცვლილებები დაიკარგება.',
     inspectorTitle:'ინსპექტორი',
     inspectorHint:'დააჭირეთ ელემენტს კადრში ან აირჩიეთ ქვემოთ. ფრაზის ასარჩევად გადაუსვით სიტყვებს პირდაპირ გადახედვაში.',
-    elBackground:'ფონი',elTitle:'სათაური',elQuote:'ციტატა',elPhrase:'ფრაზა',elAuthor:'ავტორი',elLogo:'ლოგო',
+    elBackground:'ფონი',elTitle:'სათაური',elQuote:'ციტატა',elPhrase:'ფრაზა',elAttribution:'ავტორი',elLogo:'ლოგო',
     motionTitle:'მოძრაობა',breathing:'მუდმივი მსუბუქი მოძრაობა',
     breathOff:'გამორთ.',breathSubtle:'ნაზი',breathNormal:'ჩვეულებრივი',breathStrong:'ძლიერი',
     templateQuote:'ციტატა',quoteText:'ციტატის ტექსტი',titleField:'სათაური (ციტატის ზემოთ, არასავალდებულო)',

@@ -137,7 +137,8 @@
     tpl.editor($("#editor-panel"), redraw);
     selectedEl = tpl.inspector ? (tpl.elements ? tpl.elements[2] || tpl.elements[0] : null) : null;
     buildInspector();
-    redraw();
+    /* land on a composed "hero" frame instead of the empty first frame */
+    window.Stage.seekFraction(0.66);
   }
 
   function redraw() { window.Stage.renderAt(window.Stage.currentT()); }
