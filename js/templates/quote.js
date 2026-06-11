@@ -1,9 +1,4 @@
-/* quote.js — TEMPLATE 1 (Quote)
- *
- * Improvements in this revision:
- *   #3  drag-drop on background upload
- *   #10 lower-third rendering (uses BrandKit.lowerThird settings)
- */
+/* quote.js — TEMPLATE 1 (Quote) */
 window.QuoteTemplate = (function () {
   const T = window.Timeline;
 
@@ -29,41 +24,72 @@ window.QuoteTemplate = (function () {
   QT.tt = window.TextTargeting.create(QT.state.quote);
   QT.tt.sel = { start: 9, end: 11 };
 
-  QT.BG_PRESETS = ["Gradient", "Vignette", "Diagonal", "Spotlight", "Grid"];
+  QT.BG_PRESETS = ["bgGradient","bgVignette","bgDiagonal","bgSpotlight","bgGrid"];
   QT.BG_LIBRARY = [
-    "bg-texture-1", "bg-texture-2", "bg-texture-3",
-    "bg-abstract-1", "bg-abstract-2", "bg-abstract-3",
-    "bg-atmos-1", "bg-atmos-2", "bg-atmos-3",
+    "bg-texture-1","bg-texture-2","bg-texture-3",
+    "bg-abstract-1","bg-abstract-2","bg-abstract-3",
+    "bg-atmos-1","bg-atmos-2","bg-atmos-3",
   ];
-  QT.REVEALS = [["fade","Fade up"],["type","Typewriter"],["wipe","Wipe"],["cascade","Word cascade"]];
-  QT.BACKINGS = [["none","None"],["shadow","Drop shadow"],["panel","Dark panel"]];
+  QT.REVEALS = [["fade","revFade"],["type","revType"],["wipe","revWipe"],["cascade","revCascade"]];
+  QT.BACKINGS = [["none","backNone"],["shadow","backShadow"],["panel","backPanel"]];
 
-  /* ---------------- editor panel ---------------- */
+  /* ---- drag-drop helper ---- */
+  function wireDropZone(el, onFile) {
+    el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("drag-over"); });
+    el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
+    el.addEventListener("drop", e => {
+      e.preventDefault(); el.classList.remove("drag-over");
+      const f = e.dataTransfer.files[0]; if (!f || !f.type.startsWith("image/")) return;
+      onFile(f);
+    });
+  }
+  function loadPhotoFile(f, dropEl, onChange) {
+    const img = new Image();
+    img.onload = () => { QT.state.photo = img; QT.invalidate(); onChange && onChange(); };
+    img.src = URL.createObjectURL(f);
+    dropEl.textContent = f.name;
+  }
+  function loadBgFile(f, dropEl, bgWrap, libWrap, onChange) {
+    const img = new Image();
+    img.onload = () => {
+      QT.state.bg = { type: "image", preset: QT.state.bg.preset, image: img };
+      [...bgWrap.children].forEach(c => c.classList.remove("active"));
+      [...libWrap.children].forEach(c => c.classList.remove("active"));
+      QT.invalidate(); onChange && onChange();
+    };
+    img.src = URL.createObjectURL(f);
+    dropEl.textContent = f.name;
+  }
+
+  /* ---------------- editor panel (i18n-aware) ---------------- */
   QT.editor = function (container, onChange) {
-    const opts = (arr, cur) => arr.map(([v, l]) => `<option value="${v}"${v===cur?" selected":""}>${l}</option>`).join("");
+    const L = window.Lang;
+    const opts = (arr, cur) =>
+      arr.map(([v, lk]) => `<option value="${v}"${v===cur?" selected":""}>${L.t(lk)}</option>`).join("");
+
     container.innerHTML = `
-      <div class="section-title">Quote</div>
+      <div class="section-title">${L.t('templateQuote')}</div>
       <div class="field">
-        <label>Quote text</label>
+        <label>${L.t('quoteText')}</label>
         <textarea id="q-text"></textarea>
-        <button class="ai-btn" id="q-ai">✨ help with text</button>
+        <button class="ai-btn" id="q-ai">${L.t('aiHelpText')}</button>
       </div>
       <div class="field">
-        <label>Target a phrase (click first word, then last)</label>
+        <label>${L.t('targetPhrase')}</label>
         <div class="word-pick" id="q-words"></div>
-        <div class="hint">The targeted phrase gets the zoom + underline. <a id="q-clear" style="color:var(--accent);cursor:pointer">clear</a></div>
+        <div class="hint">${L.t('targetHint')} <a id="q-clear" style="color:var(--accent);cursor:pointer">${L.t('clearSel')}</a></div>
       </div>
       <div class="field">
-        <label>Text reveal</label>
+        <label>${L.t('textReveal')}</label>
         <select id="q-reveal">${opts(QT.REVEALS, QT.state.textReveal)}</select>
       </div>
       <div class="field">
-        <label>Text backing (use if text is lost on the background)</label>
+        <label>${L.t('textBacking')} — ${L.t('backingHint')}</label>
         <select id="q-backing">${opts(QT.BACKINGS, QT.state.textBacking)}</select>
       </div>
       <div class="field">
-        <label>Speaker photo</label>
-        <div class="logo-drop" id="q-photo-drop">Click or drop a speaker photo</div>
+        <label>${L.t('speakerPhoto')}</label>
+        <div class="logo-drop" id="q-photo-drop">${L.t('photoDropText')}</div>
         <input type="file" id="q-photo" accept="image/*" hidden />
         <div class="adjust" id="q-photo-adj">
           <label>Zoom <input type="range" id="pa-scale" min="100" max="280" value="100"></label>
@@ -72,21 +98,21 @@ window.QuoteTemplate = (function () {
         </div>
       </div>
       <div class="field">
-        <label>Name</label>
+        <label>${L.t('nameLabel')}</label>
         <input type="text" id="q-name" />
       </div>
       <div class="field">
-        <label>Title / source</label>
+        <label>${L.t('titleSource')}</label>
         <input type="text" id="q-title" />
       </div>
       <div class="field">
-        <label>Background — presets</label>
+        <label>${L.t('bgPresets')}</label>
         <div class="bg-grid" id="q-bg"></div>
-        <label style="margin-top:12px">Background — library</label>
+        <label style="margin-top:12px">${L.t('bgLibrary')}</label>
         <div class="bg-lib" id="q-bg-lib"></div>
-        <div class="logo-drop" id="q-bg-drop" style="margin-top:8px">Click or drop a background image</div>
+        <div class="logo-drop" id="q-bg-drop" style="margin-top:8px">${L.t('bgDropText')}</div>
         <input type="file" id="q-bg-file" accept="image/*" hidden />
-        <button class="ai-btn" id="q-bg-ai">✨ generate more background options</button>
+        <button class="ai-btn" id="q-bg-ai">${L.t('aiGenerateBg')}</button>
       </div>
     `;
 
@@ -108,7 +134,7 @@ window.QuoteTemplate = (function () {
     $("#q-reveal").addEventListener("change", e => { QT.state.textReveal = e.target.value; onChange && onChange(); });
     $("#q-backing").addEventListener("change", e => { QT.state.textBacking = e.target.value; onChange && onChange(); });
 
-    // Speaker photo — click + drag-drop (#3)
+    // Speaker photo
     const photoDropEl = $("#q-photo-drop");
     photoDropEl.addEventListener("click", () => $("#q-photo").click());
     $("#q-photo").addEventListener("change", e => {
@@ -124,11 +150,11 @@ window.QuoteTemplate = (function () {
 
     // Background presets
     const bgWrap = $("#q-bg");
-    QT.BG_PRESETS.forEach((label, idx) => {
+    QT.BG_PRESETS.forEach((lk, idx) => {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "bg-cell bg-p" + idx + ((QT.state.bg.type === "preset" && QT.state.bg.preset === idx) ? " active" : "");
-      b.title = label;
+      b.title = L.t(lk);
       b.addEventListener("click", () => {
         QT.state.bg = { type: "preset", preset: idx, image: QT.state.bg.image };
         [...bgWrap.children].forEach(c => c.classList.remove("active"));
@@ -159,7 +185,7 @@ window.QuoteTemplate = (function () {
       libWrap.appendChild(th);
     });
 
-    // Background upload — click + drag-drop (#3)
+    // Background upload
     const bgDropEl = $("#q-bg-drop");
     bgDropEl.addEventListener("click", () => $("#q-bg-file").click());
     $("#q-bg-file").addEventListener("change", e => {
@@ -168,45 +194,13 @@ window.QuoteTemplate = (function () {
     });
     wireDropZone(bgDropEl, f => loadBgFile(f, bgDropEl, bgWrap, libWrap, onChange));
 
-    $("#q-bg-ai").addEventListener("click", () => {
-      alert("✨ generate more background options\n\nGenerates additional on-brand backgrounds. Wired at design time so the final tool stays free to run.");
-    });
-    $("#q-ai").addEventListener("click", () => {
-      alert("✨ help with text\n\nUses the central free key on a cheap model by default; users can paste their own API key in settings.");
-    });
+    $("#q-bg-ai").addEventListener("click", () => alert(L.t('aiGenerateBg')));
+    $("#q-ai").addEventListener("click", () => alert(L.t('aiHelpText')));
   };
-
-  /* ---- drag-drop helper (improvement #3) ---- */
-  function wireDropZone(el, onFile) {
-    el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("drag-over"); });
-    el.addEventListener("dragleave", () => el.classList.remove("drag-over"));
-    el.addEventListener("drop", e => {
-      e.preventDefault(); el.classList.remove("drag-over");
-      const f = e.dataTransfer.files[0]; if (!f || !f.type.startsWith("image/")) return;
-      onFile(f);
-    });
-  }
-  function loadPhotoFile(f, dropEl, onChange) {
-    const img = new Image();
-    img.onload = () => { QT.state.photo = img; QT.invalidate(); onChange && onChange(); };
-    img.src = URL.createObjectURL(f);
-    dropEl.textContent = f.name;
-  }
-  function loadBgFile(f, dropEl, bgWrap, libWrap, onChange) {
-    const img = new Image();
-    img.onload = () => {
-      QT.state.bg = { type: "image", preset: QT.state.bg.preset, image: img };
-      [...bgWrap.children].forEach(c => c.classList.remove("active"));
-      [...libWrap.children].forEach(c => c.classList.remove("active"));
-      QT.invalidate(); onChange && onChange();
-    };
-    img.src = URL.createObjectURL(f);
-    dropEl.textContent = f.name;
-  }
 
   QT.invalidate = function () { QT._sig = ""; };
 
-  /* ---------------- layout (canvas, stage coords) ---------------- */
+  /* ---------------- layout ---------------- */
   function ensureLayout(ctx, W, H) {
     const bk = window.BrandKit.get();
     const sig = [W, H, QT.state.quote, bk.fonts.display].join("|");
@@ -351,7 +345,7 @@ window.QuoteTemplate = (function () {
     ctx.restore();
   }
 
-  /* ---------------- lower-third (improvement #10) ---------------- */
+  /* ---------------- lower-third ---------------- */
   function drawLowerThird(ctx, W, H, P, bk, t) {
     const lt = bk.lowerThird;
     if (!lt) return;
@@ -378,7 +372,6 @@ window.QuoteTemplate = (function () {
     ctx.globalAlpha = alpha;
     ctx.translate(slideIn, 0);
 
-    // Background bar or underline
     if (lt.style === "bar" || lt.style === "block") {
       const bg = lt.style === "block" ? P.bg : "rgba(0,0,0,0.55)";
       roundRect(ctx, margin - Math.round(W*0.015), barY - Math.round(H*0.015),
@@ -386,19 +379,16 @@ window.QuoteTemplate = (function () {
       ctx.fillStyle = bg; ctx.fill();
     }
 
-    // Accent bar
     if (lt.accentBar) {
       ctx.fillStyle = P.accent;
       ctx.fillRect(margin, barY, accentW, barH);
     }
 
-    // Name
     ctx.fillStyle = P.ink;
     ctx.font = `700 ${nameSize}px "${bk.fonts.display}", "ArchivoNarrow", sans-serif`;
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
     ctx.fillText(name, textX, barY + nameSize * 1.05);
 
-    // Underline style
     if (lt.style === "underline") {
       ctx.strokeStyle = P.accent; ctx.lineWidth = Math.round(H * 0.003);
       ctx.beginPath();
@@ -408,7 +398,6 @@ window.QuoteTemplate = (function () {
       ctx.stroke();
     }
 
-    // Title / source
     if (title) {
       ctx.fillStyle = P.muted;
       ctx.font = `400 ${subSize}px "ArchivoNarrow", sans-serif`;
@@ -418,10 +407,11 @@ window.QuoteTemplate = (function () {
     ctx.restore();
   }
 
-  /* ---------------- quote text (inside camera) ---------------- */
+  /* ---------------- quote text (inside camera transform) ---------------- */
   function drawQuoteText(ctx, L, t, P, bk, cam) {
     const size = L.size;
-    const reveal = QT.state.textReveal, backing = QT.state.textBacking;
+    const reveal = QT.state.textReveal;
+    const backing = QT.state.textBacking;
     const textEnter = T.tween(t, 0.4, 0.7, 0, 1, "out");
 
     if (backing === "panel") {
@@ -432,6 +422,7 @@ window.QuoteTemplate = (function () {
       ctx.fill(); ctx.restore();
     }
 
+    // Accent bar + quotemark
     ctx.save(); ctx.globalAlpha = textEnter;
     ctx.fillStyle = P.accent;
     ctx.fillRect(L.margin - Math.round(size*0.45), L.topY - Math.round(size*1.0), Math.round(size*0.16), L.lineH * L.lineCount + size*0.6);
@@ -444,10 +435,12 @@ window.QuoteTemplate = (function () {
     ctx.font = `700 ${size}px "${bk.fonts.display}", "Archy", sans-serif`;
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
 
+    // Typewriter: cumulative character counts per word
     const offsets = []; let cc = 0;
-    L.rects.forEach(r => { offsets.push(cc); cc += r.text.length; });
+    L.rects.forEach(r => { offsets.push(cc); cc += r.text.length + 1; /* +1 for space */ });
+    const totalChars = cc;
     const revP = T.tween(t, 0.5, 1.5, 0, 1, "out");
-    const shownChars = Math.floor(revP * cc);
+    const shownChars = Math.floor(revP * totalChars);
 
     let clipped = false;
     if (reveal === "wipe") {
@@ -461,19 +454,31 @@ window.QuoteTemplate = (function () {
     L.rects.forEach((r, idx) => {
       const sel = QT.tt.isSelected(r.wordIndex);
       let alpha = 1, text = r.text;
-      if (reveal === "fade") alpha = textEnter;
-      else if (reveal === "cascade") alpha = T.tween(t, 0.4 + r.wordIndex * 0.06, 0.45, 0, 1, "out");
-      else if (reveal === "type") {
-        const start = offsets[idx], end = start + r.text.length;
-        if (shownChars <= start) return;
+
+      if (reveal === "fade") {
+        alpha = textEnter;
+      } else if (reveal === "cascade") {
+        alpha = T.tween(t, 0.4 + r.wordIndex * 0.06, 0.45, 0, 1, "out");
+      } else if (reveal === "type") {
+        const start = offsets[idx];
+        const end = start + r.text.length;
+        if (shownChars <= start) return; // not reached yet
         if (shownChars < end) text = r.text.slice(0, shownChars - start);
+        alpha = 1; // typewriter words are immediately visible once reached
       }
+
       const dim = sel ? 1 : (1 - 0.28 * (cam.s > 1.02 ? Math.min(1, (cam.s - 1) / 1.1) : 0));
       ctx.globalAlpha = alpha * dim;
       ctx.fillStyle = sel ? P.accent2 : P.ink;
-      if (backing === "shadow") { ctx.shadowColor = "rgba(0,0,0,.8)"; ctx.shadowBlur = size*0.32; ctx.shadowOffsetY = size*0.05; }
+      if (backing === "shadow") {
+        ctx.shadowColor = "rgba(0,0,0,.8)";
+        ctx.shadowBlur = size*0.32;
+        ctx.shadowOffsetY = size*0.05;
+      }
       ctx.fillText(text, r.x, r.baseline);
-      if (backing === "shadow") { ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0; }
+      if (backing === "shadow") {
+        ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      }
     });
     ctx.globalAlpha = 1;
     if (clipped) ctx.restore();
@@ -495,7 +500,8 @@ window.QuoteTemplate = (function () {
       ctx.lineWidth = 4; ctx.strokeStyle = P.accent;
       ctx.beginPath(); ctx.arc(photoCx, attrY, rr, 0, Math.PI * 2); ctx.stroke();
     } else {
-      ctx.fillStyle = P.surface; ctx.beginPath(); ctx.arc(photoCx, attrY, rr, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = P.surface;
+      ctx.beginPath(); ctx.arc(photoCx, attrY, rr, 0, Math.PI * 2); ctx.fill();
       ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,.2)"; ctx.stroke();
       ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.font = `600 ${Math.round(photoR * 0.4)}px "ArchivoNarrow", sans-serif`;
@@ -508,7 +514,7 @@ window.QuoteTemplate = (function () {
     const tx = photoCx + photoR + Math.round(W * 0.022);
     ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
     ctx.fillStyle = P.ink;
-    ctx.font = `700 ${Math.round(H * 0.040)}px "${bk.fonts.display}", "Archy", sans-serif`;
+    ctx.font = `700 ${Math.round(H * 0.040)}px "${bk.fonts.display}", "ArchivoNarrow", sans-serif`;
     ctx.fillText(QT.state.name || "", tx, attrY - Math.round(H * 0.004) + slide);
     ctx.fillStyle = P.muted;
     ctx.font = `400 ${Math.round(H * 0.028)}px "ArchivoNarrow", sans-serif`;
@@ -521,25 +527,26 @@ window.QuoteTemplate = (function () {
     const W = ctx.canvas.width, H = ctx.canvas.height;
     const bk = window.BrandKit.get();
     const P = bk.palette;
-    const L = ensureLayout(ctx, W, H);
+    const Lay = ensureLayout(ctx, W, H);
 
     drawBackground(ctx, W, H, P, QT.state.bg);
 
-    const focus = QT.tt.sel ? QT.tt.focusRect(selectedRects(L), 36) : null;
+    const focus = QT.tt.sel ? QT.tt.focusRect(selectedRects(Lay), 36) : null;
     const cam = camera(t, focus, W, H);
     ctx.save();
     ctx.translate(cam.tx, cam.ty);
     ctx.scale(cam.s, cam.s);
-    drawQuoteText(ctx, L, t, P, bk, cam);
+    drawQuoteText(ctx, Lay, t, P, bk, cam);
     const up = T.tween(t, 3.4, 1.0, 0, 1, "out");
-    QT.tt.drawUnderline(ctx, selectedRects(L), up, { color: P.accent2, weight: Math.round(L.size * 0.12), gap: Math.round(L.size * 0.22) });
+    QT.tt.drawUnderline(ctx, selectedRects(Lay), up, {
+      color: P.accent2,
+      weight: Math.round(Lay.size * 0.12),
+      gap: Math.round(Lay.size * 0.22),
+    });
     ctx.restore();
 
-    // screen space: photo + name attribution
     drawAttribution(ctx, W, H, P, bk, t);
-    // screen space: lower-third (improvement #10)
     drawLowerThird(ctx, W, H, P, bk, t);
-    // screen space: logo
     drawLogo(ctx, W, H, bk);
   };
 

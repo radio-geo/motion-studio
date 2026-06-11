@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html lang="ka">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Motion Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@400;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="css/fonts.css" />
 <link rel="stylesheet" href="css/app.css" />
 </head>
@@ -13,17 +16,17 @@
 <div id="login-screen" class="screen login">
   <div class="login-card">
     <div class="login-logo">Motion<span>Studio</span></div>
-    <p class="login-sub">Broadcast-quality motion graphics. Free, in your browser.</p>
+    <p class="login-sub" data-i18n="loginSub">Broadcast-quality motion graphics. Free, in your browser.</p>
     <form id="login-form" autocomplete="off">
-      <label>User <input id="login-user" type="text" placeholder="user" /></label>
-      <label>Password <input id="login-pass" type="password" placeholder="123" /></label>
-      <button type="submit" class="btn primary">Sign in</button>
-      <p id="login-error" class="login-error" hidden>Wrong user or password.</p>
+      <label data-i18n="labelUser">User <input id="login-user" type="text" placeholder="user" /></label>
+      <label data-i18n="labelPassword">Password <input id="login-pass" type="password" placeholder="123" /></label>
+      <button type="submit" class="btn primary" data-i18n="signIn">Sign in</button>
+      <p id="login-error" class="login-error" hidden data-i18n="loginError">Wrong user or password.</p>
     </form>
     <div class="login-dormant">
-      <button class="btn ghost" disabled title="Coming later">Continue with Google</button>
-      <button class="btn ghost" disabled title="Coming later">Email sign-in</button>
-      <span class="tag-later">scaffolded, dormant</span>
+      <button class="btn ghost" disabled title="Coming later" data-i18n="continueGoogle">Continue with Google</button>
+      <button class="btn ghost" disabled title="Coming later" data-i18n="emailSignIn">Email sign-in</button>
+      <span class="tag-later" data-i18n="scaffoldedDormant">scaffolded, dormant</span>
     </div>
   </div>
 </div>
@@ -34,8 +37,13 @@
     <div class="brand">Motion<span>Studio</span></div>
     <nav class="template-tabs" id="template-tabs"></nav>
     <div class="topbar-right">
+      <!-- Language toggle — always visible -->
+      <div class="seg lang-toggle" id="lang-toggle">
+        <button data-lang="en">EN</button>
+        <button data-lang="ge">GE</button>
+      </div>
       <span id="active-user" class="who"></span>
-      <button id="logout-btn" class="btn ghost small">Sign out</button>
+      <button id="logout-btn" class="btn ghost small" data-i18n="signOut">Sign out</button>
     </div>
   </header>
 
@@ -54,28 +62,29 @@
           <button data-fps="25" class="active">25 fps</button>
           <button data-fps="50">50 fps</button>
         </div>
-        <!-- Duration control (#6) -->
-        <div class="seg" id="dur-seg" title="Clip duration">
-          <button data-dur="5">5s</button>
-          <button data-dur="7" class="active">7s</button>
-          <button data-dur="10">10s</button>
-          <button data-dur="15">15s</button>
+        <!-- Flexible duration control -->
+        <div class="dur-control" id="dur-control">
+          <input type="text" id="dur-input" class="dur-input" value="7" title="Duration — type seconds or mm:ss" />
+          <div class="dur-presets" id="dur-presets">
+            <button data-dur="5">5s</button>
+            <button data-dur="15">15s</button>
+            <button data-dur="30">30s</button>
+            <button data-dur="60">1m</button>
+            <button data-dur="120">2m</button>
+          </div>
         </div>
         <div class="transport">
-          <button id="play-btn" class="btn small">Play</button>
-          <button id="restart-btn" class="btn ghost small">Restart</button>
-          <!-- Loop toggle (#8) -->
-          <button id="loop-btn" class="btn ghost small" title="Loop on">↩ Loop</button>
+          <button id="play-btn" class="btn small" data-i18n="play">Play</button>
+          <button id="restart-btn" class="btn ghost small" data-i18n="restart">Restart</button>
+          <button id="loop-btn" class="btn ghost small active" title="Loop on" data-i18n="loop">↩ Loop</button>
         </div>
-        <!-- Keyboard hint -->
-        <span class="kbd-hint">Space · R · ←→</span>
+        <span class="kbd-hint" data-i18n="kbdHint">Space · R · ←→</span>
       </div>
 
       <div class="stage-frame" id="stage-frame">
         <canvas id="stage-canvas" width="1920" height="1080"></canvas>
       </div>
 
-      <!-- Scrubber with time display (#5) -->
       <div class="scrubber">
         <input id="scrub" type="range" min="0" max="1000" value="0" />
         <span id="time-display" class="time-display">0.0 / 7.0</span>
@@ -92,6 +101,7 @@
 
 <!-- modules -->
 <script src="js/config/placeholders.js"></script>
+<script src="js/config/i18n.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/engine/timeline.js"></script>
 <script src="js/engine/text-targeting.js"></script>
@@ -100,6 +110,7 @@
 <script src="js/templates/quote.js"></script>
 <script src="js/templates/social.js"></script>
 <script src="js/templates/slideshow.js"></script>
+<script src="js/templates/press.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
